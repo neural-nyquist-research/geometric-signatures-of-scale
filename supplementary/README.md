@@ -7,8 +7,7 @@ Everything needed to install and run the pipeline on a machine other than the au
 | `environment_geometry_winpython3.12.9.0.txt` | the **full** pinned environment, torch included, used for extraction and analysis |
 | `Dockerfile` | container recipe; builds from the **repository root**, not from this folder |
 | `DOCKER_GUIDE.md` | build and run instructions, with the host-mount layout the pipeline expects |
-| `scripts.zip` | the script set of **this** version — 65 files, flat — for a machine where the scripts sit beside the data folders |
-| `scripts_full.zip` | the same plus the two Praat measurement folders — 138 files, 180 MB — a release asset, not in git, uploaded as eight parts of 22 MB [here](https://github.com/neural-nyquist-research/geometric-signatures-of-scale/releases/tag/v1.0.0) |
+| `scripts.zip` | the script set of **this** version — 72 entries, flat, 190 KB — for a machine where the scripts sit beside the data folders |
 
 ## What is in `scripts.zip`
 
@@ -21,7 +20,7 @@ It is deliberately not the whole history. It holds what produces the manuscript 
 | 3 analysis | 17 | the scripts that compute what the shipped caches hold |
 | 4 figures | 7 | the scripts that draw the seven printed figures |
 | 5 tables | 12 + `pair_summary.csv` | every table of the manuscript, plus the three cross-checks |
-| 6 Praat data | 72 | `praat_PitchTier/` (25 languages) and `praat_PitchTier_mls/` (8): the `.PitchTier` and `.FormantGrid` tracks that `02_02` reads, with the two `.praat` scripts |
+| 6 Praat runbooks | 6 | `praat_PitchTier/` and `praat_PitchTier_mls/`: `pitchTier.praat`, `formantGrid.praat` and `run.txt` in each — they generate the tracks `02_02` reads, from the wav files you copy in |
 
 `MANIFEST.txt` inside the archive lists every file by name and states what was left out.
 
@@ -32,18 +31,15 @@ its Tab02, `43_02` for its Tab04, `43_03` for its Tab05): those tables are not i
 sets remain in the repository's `scripts/` folder for provenance. `44_mantel_permutation_test.py` is
 absent because it needs the hidden states; its output, `data/mantel_perm_results.csv`, ships instead.
 
-## The Praat folders and the size limit
+## The Praat runbooks
 
-`scripts_full.zip` carries `praat_PitchTier/` and `praat_PitchTier_mls/` — 910 MB uncompressed, 180 MB
-compressed, split into eight parts of 22 MB because GitHub's browser upload stops at 25 MB
-(`cat scripts_full.zip.part-* > scripts_full.zip`, md5 `6478086284335081e42ca9824149d2e8`) — because `02_02_formant_dim_analysis_02_praat_sync.py` reads them at `./praat_PitchTier/` and
-`./praat_PitchTier_mls/`. GitHub refuses any file above 100 MB, so this archive cannot live in the
-repository: it is attached to a release, and the two folders are listed in `.gitignore`. `scripts.zip`
-stays in the repository for the common case, since every table and every figure rebuilds without the
-Praat tracks.
+`praat_PitchTier/` and `praat_PitchTier_mls/` carry `pitchTier.praat`, `formantGrid.praat` and `run.txt`,
+not the tracks those scripts produce. `run.txt` says what to do: copy the language wav files into the
+folder and run its two lines. The `.PitchTier` and `.FormantGrid` files (910 MB) appear beside them.
 
-`Praat_6462.exe` (61 MB in each folder) is not in either archive. `praat_PitchTier/*.txt` records the two
-command lines it runs, so any Praat 6.4.x substitutes for it.
+They are kept that way because nothing in the archive needs the tracks: `02_02` reads them once to build
+the formant caches, and those caches ship in `re-organized/`. `Praat_6462.exe` is left out as well (63 MB,
+Windows only); any Praat 6.4.x runs the two lines unchanged.
 
 ## Two layouts, no edits
 

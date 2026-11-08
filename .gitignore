@@ -35,8 +35,5 @@ venv/
 .idea/
 *.swp
 
-# The Praat measurement folders (910 MB) and the archive that carries them. Both are distributed as a
-# release asset; see supplementary/README.md.
-scripts/praat_PitchTier/
-scripts/praat_PitchTier_mls/
-supplementary/scripts_full.zip
+# Praat binaries; the runbook in praat_PitchTier/ works with any Praat 6.4.x
+*.exe

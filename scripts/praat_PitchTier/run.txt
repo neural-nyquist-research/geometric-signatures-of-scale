@@ -1,0 +1,3 @@
+copy the language wav files here and run the following two lines
+.\Praat_6462.exe --run .\pitchTier.praat
+.\Praat_6462.exe --run .\formantGrid.praat
