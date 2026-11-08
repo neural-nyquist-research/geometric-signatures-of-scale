@@ -1,0 +1,38 @@
+cff-version: 1.2.0
+message: "If you use this code or the shipped measurement caches, please cite the manuscript below."
+title: "Geometric Signatures of Scale in the XLS-R Family: Typological Alignment, Manifold Change, and Expert Separation in Self-Supervised Speech Models"
+abstract: >-
+  Measurement caches, figures and analysis code for a study of seven self-supervised speech encoders
+  (XLSR-53, XLS-R-300M/1B/2B, MMS-300M/1B, mHuBERT-147) on 24 FLEURS languages plus the Rucheng dialect,
+  with MLS as a second corpus. The paper reports a late alignment checkpoint at relative depth 0.75-0.79,
+  a saturating step in intrinsic dimension between the 300M and 1B/2B tiers, disjoint tone and
+  syllable-structure discriminant sets at Layer 38, and no ordering of recognition accuracy by any of the
+  geometric quantities.
+authors:
+  - family-names: He
+    given-names: Junjie
+    affiliation: "Shaanxi Normal University, Xi'an, China"
+  - family-names: Wang
+    given-names: Fang
+    affiliation: "Shaanxi Normal University, Xi'an, China"
+license: GPL-3.0-only
+type: software
+repository-code: "https://github.com/neural-nyquist-research/geometric-signatures-of-scale"
+keywords:
+  - self-supervised speech models
+  - XLS-R
+  - Mantel correlation
+  - intrinsic dimension
+  - manifold geometry
+  - linguistic typology
+preferred-citation:
+  type: article
+  title: "Geometric Signatures of Scale in the XLS-R Family: Typological Alignment, Manifold Change, and Expert Separation in Self-Supervised Speech Models"
+  authors:
+    - family-names: He
+      given-names: Junjie
+    - family-names: Wang
+      given-names: Fang
+  journal: "IEEE/ACM Transactions on Audio, Speech, and Language Processing"
+  year: 2026
+  notes: "Under review"
