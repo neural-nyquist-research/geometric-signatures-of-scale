@@ -7,10 +7,16 @@ Family: Typological Alignment, Manifold Change, and Expert Separation in Self-Su
 
 | file | size | what it is |
 |---|---|---|
-| **`scripts_full.zip`** | 180 MB | the complete pipeline (65 scripts) **plus** the two Praat measurement folders, `praat_PitchTier/` (25 languages) and `praat_PitchTier_mls/` (8) |
+| **`scripts_full.zip.part-0` … `part-3`** | 45 + 45 + 45 + 36 MB | the complete pipeline (65 scripts) **plus** the two Praat measurement folders, `praat_PitchTier/` (25 languages) and `praat_PitchTier_mls/` (8). Uploaded in four parts because GitHub's browser upload stops at 25 MB per file; join them before unzipping |
 | *source archive* | 11 MB | the repository itself — clone it instead |
 
-`scripts_full.zip` is here rather than in the repository because of GitHub's 100 MB per-file limit. The
+```bash
+cat scripts_full.zip.part-0 scripts_full.zip.part-1 scripts_full.zip.part-2 scripts_full.zip.part-3 > scripts_full.zip
+md5sum scripts_full.zip      # 6478086284335081e42ca9824149d2e8
+unzip scripts_full.zip       # 138 files
+```
+
+The archive is here rather than in the repository because of GitHub's 100 MB per-file limit. The
 Praat folders are 910 MB uncompressed; `02_02_formant_dim_analysis_02_praat_sync.py` reads them at
 `./praat_PitchTier/`, so unzip beside the other data folders.
 

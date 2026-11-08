@@ -8,7 +8,7 @@ Everything needed to install and run the pipeline on a machine other than the au
 | `Dockerfile` | container recipe; builds from the **repository root**, not from this folder |
 | `DOCKER_GUIDE.md` | build and run instructions, with the host-mount layout the pipeline expects |
 | `scripts.zip` | the script set of **this** version — 65 files, flat — for a machine where the scripts sit beside the data folders |
-| `scripts_full.zip` | the same plus the two Praat measurement folders — 137 files, 180 MB — a release asset, not in git: [download](https://github.com/neural-nyquist-research/geometric-signatures-of-scale/releases/download/v1.0.0/scripts_full.zip) |
+| `scripts_full.zip` | the same plus the two Praat measurement folders — 138 files, 180 MB — a release asset, not in git, uploaded as four parts [here](https://github.com/neural-nyquist-research/geometric-signatures-of-scale/releases/tag/v1.0.0) |
 
 ## What is in `scripts.zip`
 
@@ -35,7 +35,8 @@ absent because it needs the hidden states; its output, `data/mantel_perm_results
 ## The Praat folders and the size limit
 
 `scripts_full.zip` carries `praat_PitchTier/` and `praat_PitchTier_mls/` — 910 MB uncompressed, 180 MB
-compressed — because `02_02_formant_dim_analysis_02_praat_sync.py` reads them at `./praat_PitchTier/` and
+compressed, split into four parts because GitHub's browser upload stops at 25 MB
+(`cat scripts_full.zip.part-* > scripts_full.zip`, md5 `6478086284335081e42ca9824149d2e8`) — because `02_02_formant_dim_analysis_02_praat_sync.py` reads them at `./praat_PitchTier/` and
 `./praat_PitchTier_mls/`. GitHub refuses any file above 100 MB, so this archive cannot live in the
 repository: it is attached to a release, and the two folders are listed in `.gitignore`. `scripts.zip`
 stays in the repository for the common case, since every table and every figure rebuilds without the
