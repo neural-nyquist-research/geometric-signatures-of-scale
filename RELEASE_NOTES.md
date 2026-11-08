@@ -7,11 +7,11 @@ Family: Typological Alignment, Manifold Change, and Expert Separation in Self-Su
 
 | file | size | what it is |
 |---|---|---|
-| **`scripts_full.zip.part-0` … `part-3`** | 45 + 45 + 45 + 36 MB | the complete pipeline (65 scripts) **plus** the two Praat measurement folders, `praat_PitchTier/` (25 languages) and `praat_PitchTier_mls/` (8). Uploaded in four parts because GitHub's browser upload stops at 25 MB per file; join them before unzipping |
+| **`scripts_full.zip.part-0` … `part-7`** | 7 × 22 MB + 17 MB | the complete pipeline (65 scripts) **plus** the two Praat measurement folders, `praat_PitchTier/` (25 languages) and `praat_PitchTier_mls/` (8). Eight parts, each under GitHub's 25 MB browser limit; join them before unzipping |
 | *source archive* | 11 MB | the repository itself — clone it instead |
 
 ```bash
-cat scripts_full.zip.part-0 scripts_full.zip.part-1 scripts_full.zip.part-2 scripts_full.zip.part-3 > scripts_full.zip
+cat scripts_full.zip.part-* > scripts_full.zip
 md5sum scripts_full.zip      # 6478086284335081e42ca9824149d2e8
 unzip scripts_full.zip       # 138 files
 ```

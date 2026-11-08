@@ -176,14 +176,13 @@ the `figures/` scripts above; they stay for provenance and are not part of `scri
 ## 6. What is not here
 
 In the repository: the Praat tracks (`praat_PitchTier/`, `praat_PitchTier_mls/`, 910 MB). They ship with
-the whole script set in one archive, 180 MB, split into four parts on the release page — GitHub's browser
-upload stops at 25 MB, so it travels in pieces:
+the whole script set in one archive, 180 MB, split into eight parts of 22 MB (the last 17 MB) on the
+release page: each part is under GitHub's 25 MB browser limit, so they can be dragged in by hand:
 
 <https://github.com/neural-nyquist-research/geometric-signatures-of-scale/releases/tag/v1.0.0>
 
 ```bash
-cat scripts_full.zip.part-0 scripts_full.zip.part-1 scripts_full.zip.part-2 scripts_full.zip.part-3 \
-    > scripts_full.zip
+cat scripts_full.zip.part-* > scripts_full.zip
 md5sum scripts_full.zip      # 6478086284335081e42ca9824149d2e8
 unzip scripts_full.zip       # 138 files
 ```
