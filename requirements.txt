@@ -1,5 +1,5 @@
-# Pinned environment for the model_compare01 project (Python 3.12.9).
-# Supplied by the authors; used to rebuild the figure-generation environment.
+# Pinned environment for the geometric signatures of scale project (Python 3.12.9).
+# Used to rebuild the figure-generation environment.
 accelerate==1.12.0
 datasets==4.7.0
 huggingface_hub==0.36.2
