@@ -19,7 +19,7 @@ It is deliberately not the whole history. It holds what produces the manuscript 
 | 2 MLS layout | 2 | build and unwind the MLS folder structure |
 | 3 analysis | 17 | the scripts that compute what the shipped caches hold |
 | 4 figures | 7 | the scripts that draw the seven printed figures |
-| 5 tables | 12 + `pair_summary.csv` | every table of the manuscript, plus the three cross-checks |
+| 5 tables | 13 + `pair_summary.csv` | every table of the manuscript, plus the four cross-checks |
 | 6 Praat runbooks | 6 | `praat_PitchTier/` and `praat_PitchTier_mls/`: `pitchTier.praat`, `formantGrid.praat` and `run.txt` in each — they generate the tracks `02_02` reads, from the wav files you copy in |
 
 `MANIFEST.txt` inside the archive lists every file by name and states what was left out.

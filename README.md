@@ -55,10 +55,12 @@ python figures/fig5_id_language_paths.py
 python figures/fig6_lda_projection.py
 python figures/fig7_disentanglement.py
 
-# Cross-checks: corpus completeness, the Section IV-G p-values, the ±2 s lag window
+# Cross-checks: corpus completeness, the Section IV-G p-values, the ±2 s lag window,
+# and the Section IV-D topology numbers
 python scripts/43_06_corpus_check_fleurs_vs_mls.py
 python scripts/43_09_check_section_IV_G_numbers.py
 python scripts/43_12_check_lag_window_numbers.py
+python scripts/43_13_check_topology_numbers.py
 ```
 
 Table scripts write into `results/`; figure scripts overwrite `figures/`. Six of the table scripts take
@@ -135,6 +137,7 @@ names the pipeline writes (`wav2vec2-large-xlsr-53`, `wav2vec2-xls-r-300m`, `wav
 | `re-organized/<model>/global_results/Layer_Evolution_Analysis_allLayers.csv` | per language × layer × dimension, 14 files, 1.8 MB | Fig. 3 |
 | `re-organized/manifold_area.csv`, `mean_shift.csv`, `mantel_results_cache.csv` | one row per model–layer | Fig. 2, Table I |
 | `re-organized/Entropy_Results_*_moreLayers.csv`, `Raw_Lag_Dist_*_moreLayers.csv` | per model × layer | Fig. 4, §IV-C |
+| `re-organized/wav2vec2-xls-r-2b/topology_quant_results.csv` | 49 layers × 300 language pairs | §IV-D (checked by `43_13`) |
 | `re-organized_mls/…` | the same set for the eight MLS languages, 2.0 MB | MLS replication (§IV-E) |
 | `downstream/asr.csv` | 7 encoders × 24 languages | Table VII |
 | `logs/anchor_13_13_25_25.log`, `late_checkpoint.log`, `control_19_19_38_38.log` | three run logs | `43_09` |
