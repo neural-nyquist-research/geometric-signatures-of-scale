@@ -24,8 +24,10 @@ container will write them as root and you will fight permissions later.
 ```bash
 export BASE_PATH="/mnt/bigdrive/geometry_project"
 mkdir -p $BASE_PATH/{audios,huggingface,models,inferred,re-organized,re-organized_mls,downstream,results}
-unzip -o supplementary/scripts.zip -d "$BASE_PATH"    # the mount hides the copy baked into the image
 ```
+
+Nothing has to be copied into `$BASE_PATH`: the container puts the scripts there itself, because the mount
+hides the ones unpacked at build time (§4).
 
 ## 3. Run
 
@@ -51,6 +53,16 @@ python 43_05_table_mantel_checkpoints_tab-mantel-checkpoints.py --check   # anal
 
 No `scripts/` prefix: the archive is flat, and the scripts are addressed from the working directory. The
 same holds for the batch runners `00_15-18_infer.sh` and `00_15-18_infer.bat`.
+
+### Why the scripts are there at all
+
+The working directory doubles as the mount point, and a bind mount **replaces** the directory instead of
+merging with it: everything the image unpacked at `/home/geometry_user/geometry` disappears behind
+`$BASE_PATH`. That is why the Dockerfile also keeps a pristine copy at `/opt/geometry-scripts`, and why the
+container carries an entry point (`supplementary/docker-entrypoint.sh`) that copies it back when the mounted
+folder holds no `MANIFEST.txt`. A folder that already has the scripts is left alone, so a host copy of the
+archive still wins; you only need to unzip into `$BASE_PATH` yourself if you want the scripts to live on the
+host between runs.
 
 ## 5. Notes
 
