@@ -12,7 +12,15 @@ os.makedirs(str(Path(f"{script_dir}/audios/_hn_rucheng")), exist_ok=True)
 
 hn_rucheng_filename="hn_rucheng_1_hours_merged.wav"
 
-src_path=str(Path(f"{script_dir}/{hn_rucheng_filename}"))
+# The recording sits beside the script in the repository layout, and beside it again once
+# scripts.zip is unpacked flat; the scripts/ subfolder is kept as a further candidate so that
+# an older tree, or a copy of this file left at the project root, still resolves.
+candidates = [
+    Path(f"{script_dir}/scripts/{hn_rucheng_filename}"),
+    Path(f"{script_dir}/{hn_rucheng_filename}"),
+    Path(f"{script_dir.parent}/scripts/{hn_rucheng_filename}"),
+]
+src_path=str(next((p for p in candidates if p.exists()), candidates[0]))
 dst_path=str(Path(f"{script_dir}/audios/_hn_rucheng/{hn_rucheng_filename}"))
 
 if not os.path.exists(dst_path):
