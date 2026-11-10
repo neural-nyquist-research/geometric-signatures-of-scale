@@ -7,7 +7,7 @@ Everything needed to install and run the pipeline on a machine other than the au
 | `environment_geometry_winpython3.12.9.0.txt` | the **full** pinned environment, torch included, used for extraction and analysis |
 | `Dockerfile` | container recipe; builds from the **repository root**, not from this folder |
 | `DOCKER_GUIDE.md` | build and run instructions, with the host-mount layout the pipeline expects |
-| `scripts.zip` | the script set of **this** version — 72 entries, flat, 190 KB — for a machine where the scripts sit beside the data folders |
+| `scripts.zip` | the script set of **this** version — 70 entries, flat, 181 KB — for a machine where the scripts sit beside the data folders |
 
 ## What is in `scripts.zip`
 
@@ -17,7 +17,7 @@ It is deliberately not the whole history. It holds what produces the manuscript 
 |---|---|---|
 | 1 preparation | 27 | download checkpoints, FLEURS and the Rucheng recording; extract per-layer activations; re-organise the tree; build the typology table |
 | 2 MLS layout | 2 | build and unwind the MLS folder structure |
-| 3 analysis | 17 | the scripts that compute what the shipped caches hold |
+| 3 analysis | 14 | the scripts that compute what the shipped caches hold |
 | 4 figures | 7 | the scripts that draw the seven printed figures |
 | 5 tables | 13 + `pair_summary.csv` | every table of the manuscript, plus the four cross-checks |
 | 6 Praat runbooks | 6 | `praat_PitchTier/` and `praat_PitchTier_mls/`: `pitchTier.praat`, `formantGrid.praat` and `run.txt` in each — they generate the tracks `02_02` reads, from the wav files you copy in |

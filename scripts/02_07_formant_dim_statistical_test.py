@@ -4,36 +4,36 @@
 =====================================
 Statistical comparison for the four speech models in model_compare01.
 
-相对深度层次 (relative-depth layers) —— 本脚本统一对比的层次:
-    XLSR-53   : Layer 13   (wav2vec2-large-xlsr-53, 共25层)
-    XLS-R-300M: Layer 13   (wav2vec2-xls-r-300m,    共25层)
-    XLS-R-1B  : Layer 25   (wav2vec2-xls-r-1b,     共49层)
-    XLS-R-2B  : Layer 25   (wav2vec2-xls-r-2b,     共49层)
-即 XLSR-53/300M 的第13层 对应 XLS-R-1B/2B 的第25层 —— 四个模型在
-同一相对深度层次上的流形指标对比。
+Relative-depth layers (relative-depth layers) —— The layers uniformly compared in this script:
+    XLSR-53   : Layer 13   (wav2vec2-large-xlsr-53, total 25 layers)
+    XLS-R-300M: Layer 13   (wav2vec2-xls-r-300m,    total 25 layers)
+    XLS-R-1B  : Layer 25   (wav2vec2-xls-r-1b,     total 49 layers)
+    XLS-R-2B  : Layer 25   (wav2vec2-xls-r-2b,     total 49 layers)
+i.e., the 13th layer of XLSR-53/300M corresponds to the 25th layer of XLS-R-1B/2B — 
+a comparison of manifold metrics for four models at the same relative depth level.
 
-数据来源 (绘图脚本中硬编码值所在文件):
+Data sources (files containing hardcoded values in plotting scripts):
   * Point clouds / nodes  -> re-organized/<model>/formant_dim_analysis_cache/
                            Formant_Lag_Analysis_Results_moreLayers.csv
-                           (Layer 列; 保留 |Max_Corr| > 0.1, 与绘图脚本同一过滤)
+                           (Layer column; retain |Max_Corr| > 0.1, same filter as plotting script)
   * Mean Shift           -> 32_05_formant_dim_analysis_06_corr-loop_03_meanshift_moreLayers.log
                            "Final Average Offset (Mean Shift): N.NN ms"
   * Area / Normalized   -> re-organized/manifold_area.csv
                            (Physical Coverage Area, Normalized Manifold Area)
 
-统计设计:
-  - 统一在相对深度层次上比较四个模型:
+Statistical design:
+  - Uniform comparison of four models at relative depth levels:
       Layer 13: XLSR-53 vs XLS-R-300M
       Layer 25: XLS-R-1B  vs XLS-R-2B
-  - 综合全模型对比 (四模型在同一相对深度上的逐节点指标)
-  - 缩放律趋势 (参数量 vs 各聚合指标)
+  - Comprehensive cross-model comparison (per-node metrics for all four models at the same relative depth)
+  - Scaling law trends (parameters vs. various aggregated metrics)
 
-因 nodes / mean shift / area / norm 每个模型每层只有单值, 无法单独检验,
-推断性检验作用于构成流形的逐节点点云值 (Max_Corr, Best_Lag_Sec)。
+Since nodes / mean shift / area / norm are single values per model per layer, they cannot be tested individually;
+inferential tests apply to point cloud values forming the manifold (Max_Corr, Best_Lag_Sec).
 
-依赖: numpy, pandas, scipy. 缺失 scipy 时自动退回纯 Python 实现。
+Dependencies: numpy, pandas, scipy. Falls back to pure Python implementation if scipy is missing.
 
-用法:
+Usage:
     python 32_07_formant_dim_statistical_test.py
 """
 
@@ -58,7 +58,7 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# Model metadata : (name, directory, layer)  -- 相对深度层次
+# Model metadata : (name, directory, layer)  -- relative depth level
 # ---------------------------------------------------------------------------
 MODELS = [
     ("XLSR-53",   "wav2vec2-large-xlsr-53",     13),
@@ -71,13 +71,13 @@ PARAMS_M = {"XLSR-53": 300, "XLS-R-300M": 300,
             "XLS-R-1B": 1000, "XLS-R-2B": 2000}
 
 LAYER_PAIRS = [
-    ("Layer 13 (相对深度层)", ["XLSR-53", "XLS-R-300M"]),
-    ("Layer 25 (相对深度层)", ["XLS-R-1B", "XLS-R-2B"]),
+    ("Layer 13 (relative depth layer)", ["XLSR-53", "XLS-R-300M"]),
+    ("Layer 25 (relative depth layer)", ["XLS-R-1B", "XLS-R-2B"]),
 ]
 
 
 # ---------------------------------------------------------------------------
-# 统计辅助函数
+# Statistical helper functions
 # ---------------------------------------------------------------------------
 def fmt_p(p):
     if p is None:
@@ -148,10 +148,10 @@ def anova_ftest(groups):
 
 
 # ---------------------------------------------------------------------------
-# 数据加载
+# Data loading
 # ---------------------------------------------------------------------------
 def load_point_cloud(model_dir, layer):
-    """返回 (max_corr array, best_lag array), 该层保留 |Max_Corr|>0.1."""
+    """Returns (max_corr array, best_lag array), retaining only |Max_Corr|>0.1 for this layer."""
     path = os.path.join(HERE, "re-organized", model_dir,
                        "formant_dim_analysis_cache",
                        "Formant_Lag_Analysis_Results_moreLayers.csv")
@@ -174,12 +174,12 @@ def load_point_cloud(model_dir, layer):
 
 
 def parse_aggregate_from_files():
-    """nodes / mean-shift / area / norm 映射到四个模型.
+    """Maps nodes / mean-shift / area / norm to the four models.
 
-    绘图脚本的硬编码值来自这些文件:
-      * nodes            -> 该层显著点云大小 (|Max_Corr|>0.1)
-      * Mean Shift       -> 32_05 log, 与绘图所用值一致
-      * Area / NormArea -> manifold_area.csv (模型名大小写不敏感)
+    The hardcoded values in the plotting script come from these files:
+      * nodes            -> size of significant point cloud for this layer (|Max_Corr|>0.1)
+      * Mean Shift       -> 32_05 log, consistent with values used in plotting
+      * Area / NormArea -> manifold_area.csv (case-insensitive model name matching)
     """
     agg = {}
     for name, d, layer in MODELS:
@@ -205,7 +205,7 @@ def parse_aggregate_from_files():
                     except (ValueError, TypeError):
                         pass
 
-    # Mean shift: 绘图脚本使用的每模型值
+    # Mean shift: per-model values used in the plotting script
     log_path = os.path.join(HERE,
         "32_05_formant_dim_analysis_06_corr-loop_03_meanshift_moreLayers.log")
     hard = {"XLSR-53": 112.26, "XLS-R-300M": 39.85,
@@ -256,12 +256,12 @@ def main():
 
     print("=" * 78)
     print(" STATISTICAL COMPARISON — FOUR SPEECH MODELS (model_compare01)")
-    print(" 相对深度层次: XLSR-53/300M -> Layer 13 ; XLS-R-1B/2B -> Layer 25")
+    print("  Relative depth layers: XLSR-53/300M -> Layer 13 ; XLS-R-1B/2B -> Layer 25")
     print("=" * 78)
 
-    # ---------------- 聚合指标表 ----------------
+    # ---------------- Aggregate metrics table ----------------
     agg = parse_aggregate_from_files()
-    print("\nAGGREGATE METRICS (单值/每模型层 — 仅描述性)")
+    print("\nAGGREGATE METRICS (single value per model layer — descriptive only)")
     print("-" * 90)
     print(f"{'Model':<12s}{'Layer':>6s}{'Params(M)':>10s}{'Nodes':>8s}"
           f"{'MeanShift(ms)':>14s}{'Area':>10s}{'NormArea':>10s}")
@@ -272,7 +272,7 @@ def main():
         nm = "n/a" if a["norm"] is None else f"{a['norm']:.4f}"
         print(f"{name:<12s}{layer:>6d}{PARAMS_M[name]:>10d}{a['nodes']:>8d}{ms:>14s}{ar:>10s}{nm:>10s}")
 
-    # ---------------- 成对检验 (相对深度层) ----------------
+    # ---------------- Pairwise tests (relative depth layers) ----------------
     for pair_label, names in LAYER_PAIRS:
         print("\n" + "=" * 78)
         print(f" PAIRWISE COMPARISON — {pair_label}: {' vs '.join(names)}")
@@ -290,7 +290,7 @@ def main():
                     ok = "normal" if p is not None and p > 0.05 else "NOT normal"
                     print(f"    {label} Shapiro-Wilk: W={W:.4f} p={fmt_p(p)} -> {ok}")
                 elif len(arr) < 3:
-                    print(f"    {label}: n<3, 正态性不可检验")
+                    print(f"    {label}: n<3, normality cannot be tested")
         a, b = names
         for label, (va, vb) in [("Max_Corr", (clouds[a][0], clouds[b][0])),
                                 ("Best_Lag_Sec", (clouds[a][1], clouds[b][1]))]:
@@ -298,17 +298,17 @@ def main():
             wa, pa = shapiro_wilk_pvalue(va); wb, pb = shapiro_wilk_pvalue(vb)
             if sp_stats is not None and pa is not None and pb is not None and pa > 0.05 and pb > 0.05:
                 t, pt = sp_stats.ttest_ind(va, vb, equal_var=False)
-                d = cohen_d(va, vb)
-                print(f"    Welch t-test : t={t:.4f} p={fmt_p(pt)}  Cohen's d={d:+.3f}")
+                d_val = cohen_d(va, vb)
+                print(f"    Welch t-test : t={t:.4f} p={fmt_p(pt)}  Cohen's d={d_val:+.3f}")
             else:
                 U, pu = mann_whitney_u(va, vb)
                 cd = cliffs_delta(va, vb)
                 print(f"    Mann-Whitney: U={U:.1f} p={fmt_p(pu)}  Cliff's Δ={cd:+.3f}")
             print(f"    Means: {a}={np.mean(np.abs(va)):.4f} vs {b}={np.mean(np.abs(vb)):.4f}")
 
-    # ---------------- 综合全模型分析 ----------------
+    # ---------------- Comprehensive analysis across all models ----------------
     print("\n" + "=" * 78)
-    print(" COMPREHENSIVE — ALL FOUR MODELS (相对深度层次)")
+    print(" COMPREHENSIVE — ALL FOUR MODELS (relative depth layers)")
     print("   Layer 13: XLSR-53 / XLS-R-300M ; Layer 25: XLS-R-1B / XLS-R-2B")
     print("=" * 78)
 
@@ -319,7 +319,7 @@ def main():
             mc, bl = load_point_cloud(d, l)
             arr = np.abs(mc) if label == "Max_Corr" else bl
             groups.append(arr)
-        print(f"\n  Metric: {label}  (逐节点值, 四模型)")
+        print(f"\n  Metric: {label} (per-node values, four models)")
         for n, g in zip(names, groups):
             sd = np.std(g, ddof=1) if len(g) > 1 else float("nan")
             print(f"    {n:<12s} n={len(g):<4d} mean={np.mean(g):.4f} sd={sd:.4f}")
@@ -332,7 +332,7 @@ def main():
                 try:
                     from scipy.stats import tukey_hsd
                     res = tukey_hsd(*groups)
-                    print("    Post-hoc Tukey HSD (调整后 p):")
+                    print("    Post-hoc Tukey HSD (adjusted p):")
                     for i in range(len(names)):
                         for j in range(i + 1, len(names)):
                             print(f"      {names[i]:<12s} vs {names[j]:<12s} adj-p={fmt_p(res.pvalue[i][j])}")
@@ -341,14 +341,14 @@ def main():
             else:
                 H, p = kruskal_wallis_pvalue(groups)
                 print(f"    Kruskal-Wallis: H={H:.4f} p={fmt_p(p)}")
-                print("    Post-hoc 两两比较 (Cliff's Δ / 秩均值差):")
+                print("    Post-hoc pairwise comparisons (Cliff's Δ / rank mean difference):")
                 for i in range(len(names)):
                     for j in range(i + 1, len(names)):
                         cd = cliffs_delta(groups[i], groups[j])
                         print(f"      {names[i]:<12s} vs {names[j]:<12s} Cliff's Δ={cd:+.3f}")
 
-    # 缩放律趋势
-    print("\n  缩放律趋势 (Pearson r: 参数量(M) vs 各聚合指标):")
+    # Scaling law trends
+    print("\n  Scaling law trends (Pearson r: Parameters(M) vs each aggregate metric):")
     par = np.array([PARAMS_M[n] for n in names], float)
     for key, lab in [("nodes", "Nodes"), ("mean_shift", "Mean Shift"),
                     ("area", "Area"), ("norm", "Norm Area")]:
@@ -357,15 +357,15 @@ def main():
             r, pr = sp_stats.pearsonr(par, vals)
             print(f"    {lab:<12s} r={r:+.3f}  p={fmt_p(pr)}")
         else:
-            print(f"    {lab:<12s} (缺值或 scipy 不可用)")
+            print(f"    {lab:<12s} (missing values or scipy unavailable)")
 
     print("\n" + "=" * 78)
     print(" INTERPRETATION NOTES")
     print("-" * 78)
-    print(" * Nodes / Mean Shift / Area / Normalized Area 每模型层为单值, 只能作描述性指标.")
-    print(" * 推断检验作用于构成流形的逐节点点云值 (|Max_Corr|, Best_Lag_Sec).")
-    print(" * Cliff's delta: |Δ|<0.147 可忽略, <0.33 小, <0.474 中, >=0.474 大.")
-    print(" * Shapiro-Wilk p>0.05 -> 正态(用 Welch t); 否则 Mann-Whitney.")
+    print(" * Nodes / Mean Shift / Area / Normalized Area are single values per model layer, serving only as descriptive metrics.")
+    print(" * Inferential tests apply to point cloud values forming the manifold (|Max_Corr|, Best_Lag_Sec).")
+    print(" * Cliff's delta: |Δ|<0.147 negligible, <0.33 small, <0.474 medium, >=0.474 large.")
+    print(" * Shapiro-Wilk p>0.05 -> normal (use Welch t); otherwise Mann-Whitney.")
     print("=" * 78)
 
 

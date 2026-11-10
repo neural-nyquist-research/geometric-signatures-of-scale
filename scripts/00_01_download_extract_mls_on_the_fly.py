@@ -19,25 +19,25 @@ AUDIO_PATH= script_dir / "audios"
 os.makedirs(AUDIO_PATH, exist_ok=True)
 
 """
-MLS 数据集 on-the-fly 下载 + 提取一体化脚本（统一随机种子 seed=42）
+MLS dataset on-the-fly download + extraction integrated script (unified random seed seed=42)
 
-最终产物（每种语言）：
-  - mls_data/<lang>/<lang>.wav          # 该语言合计约 60 分钟的单一 WAV（16 kHz 单声道）
-  - mls_data/<lang>/metadata.tsv        # 与 WAV 对应的分段元数据（偏移/说话人/转录）
+Final outputs (per language):
+  - mls_data/<lang>/<lang>.wav          # Single WAV (~60 minutes total for that language, 16 kHz mono)
+  - mls_data/<lang>/metadata.tsv        # Segment metadata corresponding to the WAV (offset/speaker/transcript)
 
-设计：
-  - 不预先下载每种语言的全部语音数据，而是在线流式获取约 60 分钟语音，
-    先在临时目录保存独立片段，再用 ffmpeg 合并为单一 WAV，最后删除所有中间文件。
-  - 所有语言共用同一个提取函数 extract_language(lang)，仅传入语言名即可。
-  - 覆盖：english, german, french, spanish, italian, dutch, portuguese, polish
-  - 全部文件保存在本脚本所在目录（mls/）下。
+Design:
+  - Do not pre-download all speech data for each language; instead, stream approximately 60 minutes of audio online,
+    save independent segments to a temporary directory first, merge them into a single WAV using ffmpeg, and then delete all intermediate files.
+  - All languages share the same extraction function extract_language(lang), requiring only the language name as input.
+  - Coverage: english, german, french, spanish, italian, dutch, portuguese, polish
+  - All files are saved in the directory where this script is located (mls/).
 
-用法：
-  python download_extract_mls_on_the_fly.py                 # 全部语言
-  python download_extract_mls_on_the_fly.py german english  # 指定语言
-  python download_extract_mls_on_the_fly.py --keep-intermediate  # 保留中间文件
+Usage:
+  python download_extract_mls_on_the_fly.py                 # All languages
+  python download_extract_mls_on_the_fly.py german english  # Specify languages
+  python download_extract_mls_on_the_fly.py --keep-intermediate  # Keep intermediate files
 
-依赖：datasets、huggingface_hub、pyarrow、ffmpeg（系统命令）
+Dependencies: datasets, huggingface_hub, pyarrow, ffmpeg (system command)
 """
 import os
 import random
@@ -46,18 +46,18 @@ import subprocess
 import sys
 from pathlib import Path
 
-# ═══════ 全局配置（所有语言统一）═══════
-SEED = 42                       # ← 统一随机种子
-TARGET_SECONDS = 60 * 60        # 每种语言累计采集满 60 分钟即停止
+# ═══════ Global Configuration (Unified for all languages) ═══════
+SEED = 42                       # ← Unified random seed
+TARGET_SECONDS = 60 * 60        # Stop after collecting a total of 60 minutes per language
 SAVE_ROOT = script_dir / "audios_mls_data"
-TARGET_SR = 16000               # 最终 WAV 采样率（与原提取脚本一致）
+TARGET_SR = 16000               # Final WAV sample rate (consistent with original extraction script)
 WAV_CHANNELS = 1
 
 MLS_LANGS = ["german", "french", "spanish", "italian", "dutch", "portuguese", "polish"]
 ENGLISH_DATASET = "parler-tts/mls_eng"
 MULTILINGUAL_DATASET = "facebook/multilingual_librispeech"
 
-# ═══════ 环境准备 ═══════
+# ═══════ Environment Setup ═══════
 # os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
 os.environ["HF_HOME"] = str(SAVE_ROOT / "hf_cache")
 random.seed(SEED)
@@ -71,7 +71,7 @@ def _safe_name(s: str) -> str:
 
 
 def _clean_text(s: str) -> str:
-    """TSV 安全化：去掉制表符/换行"""
+    """TSV sanitization: remove tabs/newlines"""
     return str(s or "").replace("\t", " ").replace("\r", " ").replace("\n", " ").strip()
 
 
@@ -86,7 +86,7 @@ def _audio_ext(audio_bytes: bytes) -> str:
 
 
 def _iter_samples(lang: str):
-    """统一的数据样本迭代器：非英语用官方 1_hours split；英语用 dev split 本地 parquet。"""
+    """Unified data sample iterator: non-English uses official 1_hours split; English uses dev split local parquet."""
     if lang == "english":
         parquet_path = SAVE_ROOT / "_downloads" / "mls_eng_dev.parquet"
         parquet_path.parent.mkdir(parents=True, exist_ok=True)
@@ -109,17 +109,17 @@ def _iter_samples(lang: str):
 
 
 def extract_language(lang: str) -> float:
-    """统一的提取函数：采集约60分钟语音，合并为单一 WAV + 写 metadata.tsv。返回总秒数。"""
-    print(f"\n{'='*55}\n[{lang}] 正在流式获取合计 {TARGET_SECONDS//60} 分钟语音 ...")
+    """Unified extraction function: collect ~60 minutes of audio, merge into single WAV + write metadata.tsv. Returns total seconds."""
+    print(f"\n{'='*55}\n[{lang}] Streaming acquisition of {TARGET_SECONDS//60} minutes total audio ...")
 
     lang_dir = SAVE_ROOT / lang
-    tmp_dir = lang_dir / ".tmp_clips"      # 临时片段目录（合并后删除）
+    tmp_dir = lang_dir / ".tmp_clips"      # Temporary clips directory (deleted after merge)
     lang_dir.mkdir(parents=True, exist_ok=True)
     shutil.rmtree(tmp_dir, ignore_errors=True)
     tmp_dir.mkdir(parents=True)
 
-    # ── 1. 提取片段到临时目录，记录顺序与时长 ──
-    clips = []   # 每项: (clip_path, duration, speaker_id, chapter_id, transcript, source_name)
+    # ── 1. Extract segments to temporary directory, recording order and duration ──
+    clips = []   # Each item: (clip_path, duration, speaker_id, chapter_id, transcript, source_name)
     total_sec = 0.0
     for sample in _iter_samples(lang):
         if total_sec >= TARGET_SECONDS:
@@ -130,7 +130,7 @@ def extract_language(lang: str) -> float:
         chapter_id = _safe_name(str(sample.get("chapter_id", sample.get("book_id", "0"))))
         if sample.get("id"):
             sid = _safe_name(str(sample["id"]))
-        else:  # english：没有 id 字段，用 original_path 文件名 + begin_time 保证唯一
+        else:  # english: no id field, use original_path filename + begin_time to ensure uniqueness
             stem = Path(str(sample.get("original_path", "x"))).stem
             sid = _safe_name(f"{stem}_{float(sample.get('begin_time', 0.0)):.2f}")
         src_name = f"{sid}.{ext}"
@@ -142,7 +142,7 @@ def extract_language(lang: str) -> float:
                       _clean_text(sample.get("transcript", "")), src_name))
         total_sec += dur
 
-    # ── 2. 用 ffmpeg 合并为单一 WAV（16 kHz 单声道）──
+    # ── 2. Merge into single WAV (16 kHz mono) using ffmpeg ──
     wav_path = lang_dir / f"{lang}.wav"
     concat_list = lang_dir / ".concat_list.txt"
     with open(concat_list, "w", encoding="utf-8") as f:
@@ -157,7 +157,7 @@ def extract_language(lang: str) -> float:
     subprocess.run(cmd, check=True)
     concat_list.unlink(missing_ok=True)
 
-    # ── 3. 写 metadata.tsv（偏移量对应 WAV 内位置）──
+    # ── 3. Write metadata.tsv (offsets correspond to positions within the WAV) ──
     meta_path = lang_dir / "metadata.tsv"
     cum = 0.0
     with open(meta_path, "w", encoding="utf-8") as meta_f:
@@ -167,20 +167,20 @@ def extract_language(lang: str) -> float:
             meta_f.write(f"{start:.3f}\t{end:.3f}\t{dur:.3f}\t{spk}\t{chap}\t{transcript}\n")
             cum = end
 
-    # ── 4. 删除临时片段（保留单一 wav + metadata）──
+    # ── 4. Delete temporary segments (keep single wav + metadata) ──
     shutil.rmtree(tmp_dir, ignore_errors=True)
 
-    print(f"[完成] {lang}: {len(clips)} 个片段, {cum/60:.1f} 分钟 → {wav_path.name}")
+    print(f"[Complete] {lang}: {len(clips)} clips, {cum/60:.1f} minutes → {wav_path.name}")
     return cum
 
 
 def cleanup_intermediate():
-    """删除中间文件（英语 parquet 下载、HuggingFace 缓存等），仅保留最终 WAV 与 metadata。"""
+    """Delete intermediate files (English parquet download, HuggingFace cache, etc.), keeping only final WAV and metadata."""
     for name in ("_downloads", "hf_cache"):
         path = SAVE_ROOT / name
         if path.exists():
             shutil.rmtree(path, ignore_errors=True)
-            print(f"[清理] 已删除中间文件：{path}")
+            print(f"[Cleanup] Deleted intermediate files: {path}")
 
 
 def main():
@@ -333,7 +333,7 @@ def main():
     print(f"FFmpeg environment configuration complete. About to import torchcodec...")
 
     # if shutil.which("ffmpeg") is None:
-    #     sys.exit("错误：未找到 ffmpeg，请先安装（例如 apt install ffmpeg）。")
+    #     sys.exit("Error: ffmpeg not found, please install it first (e.g., apt install ffmpeg).")
 
     args = sys.argv[1:]
     keep_intermediate = "--keep-intermediate" in args
@@ -342,9 +342,9 @@ def main():
     SAVE_ROOT.mkdir(parents=True, exist_ok=True)
     (SAVE_ROOT / "hf_cache").mkdir(parents=True, exist_ok=True)
 
-    print(f"随机种子 : {SEED}")
-    print(f"保存根目录: {SAVE_ROOT}")
-    print(f"目标语言 : {langs}\n")
+    print(f"Random seed : {SEED}")
+    print(f"Save root directory: {SAVE_ROOT}")
+    print(f"Target languages : {langs}\n")
 
     results = {}
     for lang in langs:
@@ -353,9 +353,9 @@ def main():
         except Exception as e:
             import traceback
             traceback.print_exc()
-            print(f"[失败] {lang}: {e}")
+            print(f"[Failed] {lang}: {e}")
 
-    print(f"\n{'='*55}\n全部完成！各语言产物：")
+    print(f"\n{'='*55}\nAll complete! Outputs per language:")
     for name in sorted(os.listdir(SAVE_ROOT)):
         if name in ("hf_cache", "_downloads"):
             continue
@@ -364,22 +364,22 @@ def main():
             wav = path / f"{name}.wav"
             size = wav.stat().st_size if wav.exists() else 0
             mins = results.get(name, 0) / 60
-            print(f"  {name}/  wav={size/1024**2:.1f} MB, {mins:.1f} 分钟")
+            print(f"  {name}/  wav={size/1024**2:.1f} MB, {mins:.1f} minutes")
             
-            # 1: 将 wav 文件从 "english.wav" 重命名为 "english_1_hours_merged.wav"
+            # 1: Rename wav file from "english.wav" to "english_1_hours_merged.wav"
             wav_new = path / f"{name}_1_hours_merged.wav"
             if wav.exists() and not wav_new.exists():
                 wav.rename(wav_new)
 
-            # 2: 将最里层文件夹名修改为 "文件夹名_mls"
+            # 2: Modify the innermost folder name to "folder_name_mls"
             new_path = path.with_name(f"{path.name}_mls")
             if path != new_path:
                 path.rename(new_path)
                 path = new_path
 
-    # 默认清理中间文件
+    # Default cleanup of intermediate files
     if keep_intermediate:
-        print("\n[提示] 已通过 --keep-intermediate 保留中间文件")
+        print("\n[Note] Intermediate files retained via --keep-intermediate flag")
     else:
         print()
         cleanup_intermediate()

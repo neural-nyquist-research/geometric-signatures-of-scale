@@ -8,7 +8,7 @@ Why this script exists
 correlating the upper triangle of the neural distance matrix with that of the
 typological matrix. That gives a point estimate and nothing else: no p-value, no
 control for how many dimensions survive at a layer. An earlier draft of the paper
-described a 9999-permutation test and a partial Mantel control, neither of which
+proposed a 9999-permutation test and a partial Mantel control, neither of which
 the code performed. This script performs both, so that the paper can state them
 and a reader can reproduce them.
 

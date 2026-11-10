@@ -2,34 +2,33 @@
 """
 02_07_formant_dim_statistical_test_comprehensive.py
 ===================================================
-四个 wav2vec2 系模型（XLSR-53 / XLS-R-300M / XLS-R-1B / XLS-R-2B）的
-「相对深度」循环统计检验 —— 自包含版本，覆盖全部六类指标：
+Cyclic statistical test for "relative depth" across four wav2vec2-based models (XLSR-53 / XLS-R-300M / XLS-R-1B / XLS-R-2B) — self-contained version covering all six metrics:
 
-  1. Max_Corr       逐节点（逐维度）相关性幅度    —— 可做逐节点检验
-  2. Best_Lag_Sec   逐节点最优时滞              —— 可做逐节点检验
-  3. Intrinsic_Dim  逐语言内在维度 (ID)          —— 可做逐语言检验
-  4. Nodes          每层显著维度数（单值）        —— 描述性
-  5. Area           凸包物理面积（逐层）          —— bootstrap CI + 差值检验
-  6. NormArea       归一化流形面积（逐层）        —— 同上
+  1. Max_Corr       Per-node (per-dimension) correlation magnitude    —— Can be tested per node
+  2. Best_Lag_Sec   Per-node optimal lag              —— Can be tested per node
+  3. Intrinsic_Dim  Per-language intrinsic dimensionality (ID)          —— Can be tested per language
+  4. Nodes          Number of significant dimensions per layer (single value)        —— Descriptive only
+  5. Area           Convex hull physical area (per layer)          —— bootstrap CI + difference test
+  6. NormArea       Normalized manifold area (per layer)        —— Same as above
 
-数据来源（仅 FLEURS 根目录 re-organized/；本脚本不读取 MLS 数据）:
+Data Source (FLEURS root directory re-organized/ only; this script does NOT read MLS data):
   <root>/<model>/formant_dim_analysis_cache/Formant_Lag_Analysis_Results_moreLayers.csv
-         列 Language, Layer, Dimension, Formant, Max_Corr, Best_Lag_Sec
-         nodes = 该层 |Max_Corr| > 0.1 的行数
+         Columns: Language, Layer, Dimension, Formant, Max_Corr, Best_Lag_Sec
+         nodes = count of rows in that layer where |Max_Corr| > 0.1
   <root>/<model>/ID_result/ID_Analysis_L<layer>_Fixed.csv
-         列 Language, Intrinsic_Dim ; 仅取 *_fleurs 语言 (排除 GLOBAL_MEAN 等)
+         Columns: Language, Intrinsic_Dim ; only *_fleurs languages are included (excluding GLOBAL_MEAN, etc.)
   <root>/manifold_area.csv
-         列 Model, Layer, Physical Coverage Area, Normalized Manifold Area
-         (CSV 中 300M 写作 'XLS-R-300m'，按大小写不敏感匹配)
+         Columns: Model, Layer, Physical Coverage Area, Normalized Manifold Area
+         (In CSV, '300M' is written as 'XLS-R-300m'; matching is case-insensitive)
 
-用法:
-    python 02_07_formant_dim_statistical_test_comprehensive.py              # 默认 8 轮
-    python 02_07_formant_dim_statistical_test_comprehensive.py --loops 12   # 自定义轮次
-    python 02_07_formant_dim_statistical_test_comprehensive.py --no-log     # 不写日志文件
+Usage:
+    python 02_07_formant_dim_statistical_test_comprehensive.py              # Default 8 rounds
+    python 02_07_formant_dim_statistical_test_comprehensive.py --loops 12   # Custom number of rounds
+    python 02_07_formant_dim_statistical_test_comprehensive.py --no-log     # Do not write log file
 
-注意: 本脚本固定分析 FLEURS (24 语言) 数据, 不支持 --root, 也不会回退到 MLS 目录。
+Note: This script is fixed to analyze FLEURS (24 languages) data only. It does not support --root and will not fallback to the MLS directory.
 
-依赖: numpy 必需; scipy 可选（缺失时用纯 Python 实现，p 值可能为 n/a）。
+Dependencies: numpy is required; scipy is optional (if missing, pure Python implementations are used, p-values may be n/a).
 """
 
 import os
@@ -55,7 +54,7 @@ except ImportError:
 
 
 # ---------------------------------------------------------------------------
-# 模型元数据
+# Model Metadata
 # ---------------------------------------------------------------------------
 MODELS = [
     ("XLSR-53",    "wav2vec2-large-xlsr-53"),
@@ -66,27 +65,27 @@ MODELS = [
 NAMES = [m[0] for m in MODELS]
 PARAMS_M = {"XLSR-53": 300, "XLS-R-300M": 300, "XLS-R-1B": 1000, "XLS-R-2B": 2000}
 
-# 真正的缩放对比（同 128 语言、不同参数）；另一对同参数、不同语言数
+# True scaling comparison (same 128 languages, different parameters); another pair has same params but different language counts
 SCALING_PAIR = ("XLS-R-1B", "XLS-R-2B")
 LANG_PAIR = ("XLSR-53", "XLS-R-300M")
 
-# 本脚本仅供 FLEURS (24 语言) 数据分析使用: 数据根固定为 re-organized/
-# 不读取也不回退到 MLS 目录 (re-organized_mls/)。
+# This script is for FLEURS (24 languages) data analysis only: data root is fixed to re-organized/
+# It does not read or fallback to the MLS directory (re-organized_mls/).
 FLEURS_ROOT_NAME = "re-organized"
 _ROOT_CANDIDATES = [FLEURS_ROOT_NAME]
 DATA_ROOT = os.path.join(HERE, FLEURS_ROOT_NAME)
 
 
 def pick_root():
-    """返回 FLEURS 数据根目录 <script_dir>/re-organized/。
+    """Returns the FLEURS data root directory <script_dir>/re-organized/.
 
-    不做任何 MLS 回退: 缺少该目录即视为配置错误, 由调用方报错退出。
+    Does not perform any MLS fallback: if this directory is missing, it is treated as a configuration error, and the caller should exit with an error.
     """
     return os.path.join(HERE, FLEURS_ROOT_NAME)
 
 
 def count_languages(root):
-    """返回首个模型 CSV 中的 distinct Language 数 (用于数据集身份校验)。"""
+    """Returns the number of distinct Languages in the first model's CSV (for dataset identity verification)."""
     path = os.path.join(root, _model_dir(NAMES[0]), "formant_dim_analysis_cache",
                         "Formant_Lag_Analysis_Results_moreLayers.csv")
     if not os.path.exists(path):
@@ -101,7 +100,7 @@ def count_languages(root):
 
 
 # ---------------------------------------------------------------------------
-# 统计辅助函数（scipy 缺失时优雅退化）
+# Statistical Helper Functions (gracefully degrade if scipy is missing)
 # ---------------------------------------------------------------------------
 def fmt_p(p):
     if p is None:
@@ -112,7 +111,7 @@ def fmt_p(p):
 
 
 def _betainc_reg(a, b, x):
-    """正则化不完全 Beta 函数（用于精确 t 分布 p 值）。"""
+    """Regularized incomplete Beta function (for exact t-distribution p-values)."""
     if x <= 0:
         return 0.0
     if x >= 1:
@@ -146,7 +145,7 @@ def _betainc_reg(a, b, x):
 
 
 def pearson_exact(x, y):
-    """Pearson r + 精确双侧 p（Student t, df=n-2）。n=4 时 df=2，临界 |r|=0.95。"""
+    """Pearson r + exact two-sided p (Student t, df=n-2). For n=4, df=2, critical |r|=0.95."""
     x = np.asarray(x, float); y = np.asarray(y, float)
     n = len(x)
     if n < 3 or x.std() == 0 or y.std() == 0:
@@ -246,7 +245,7 @@ def anova_ftest(groups):
 
 
 # ---------------------------------------------------------------------------
-# 凸包面积 / bootstrap
+# Convex Hull Area / Bootstrap
 # ---------------------------------------------------------------------------
 def convex_hull(points):
     """Andrew monotone chain. points: (N,2) -> hull vertices."""
@@ -288,7 +287,7 @@ def hull_area(points):
 
 
 def bootstrap_area_ci(points, n_boot=2000, seed=0):
-    """点估计=全点云凸包; CI=bootstrap 百分位。"""
+    """Point estimate = convex hull of full point cloud; CI = bootstrap percentiles."""
     pts = np.asarray(points, float)
     if len(pts) < 3:
         return 0.0, 0.0, 0.0
@@ -300,7 +299,7 @@ def bootstrap_area_ci(points, n_boot=2000, seed=0):
 
 
 def bootstrap_area_diff(a, b, n_boot=2000, seed=0):
-    """两模型凸包面积差的 bootstrap: (obs_diff, lo, hi)。"""
+    """Bootstrap of difference between two models' convex hull areas: (obs_diff, lo, hi)."""
     a = np.asarray(a, float); b = np.asarray(b, float)
     if len(a) < 3 or len(b) < 3:
         return float("nan"), float("nan"), float("nan")
@@ -313,14 +312,14 @@ def bootstrap_area_diff(a, b, n_boot=2000, seed=0):
 
 
 # ---------------------------------------------------------------------------
-# 数据加载
+# Data Loading
 # ---------------------------------------------------------------------------
 def _model_dir(name):
     return next(d for n, d in MODELS if n == name)
 
 
 def load_point_cloud(name, layer):
-    """逐节点 (|Max_Corr|>0.1) 的 Max_Corr / Best_Lag。缺失返回空数组。"""
+    """Max_Corr / Best_Lag per node (|Max_Corr|>0.1). Returns empty arrays if missing."""
     path = os.path.join(DATA_ROOT, _model_dir(name), "formant_dim_analysis_cache",
                         "Formant_Lag_Analysis_Results_moreLayers.csv")
     mc, bl = [], []
@@ -341,7 +340,7 @@ def load_point_cloud(name, layer):
 
 
 def load_id(name, layer):
-    """逐语言 Intrinsic_Dim (仅 *_fleurs)。返回 dict lang->ID。"""
+    """Per-language Intrinsic_Dim (only *_fleurs). Returns dict lang->ID."""
     path = os.path.join(DATA_ROOT, _model_dir(name), "ID_result",
                         f"ID_Analysis_L{layer}_Fixed.csv")
     out = {}
@@ -352,7 +351,7 @@ def load_id(name, layer):
             for row in csv.DictReader(f):
                 lang = str(row.get("Language", "")).strip()
                 if not lang.endswith("_fleurs"):
-                    continue          # 排除 GLOBAL_MEAN / *_mls / _hn_rucheng
+                    continue          # Exclude GLOBAL_MEAN / *_mls / _hn_rucheng
                 try:
                     out[lang] = float(row["Intrinsic_Dim"])
                 except (ValueError, TypeError):
@@ -363,7 +362,7 @@ def load_id(name, layer):
 
 
 def load_area_table():
-    """{(name, layer): (area, norm)}；模型名大小写不敏感。"""
+    """{(name, layer): (area, norm)}; model name matching is case-insensitive."""
     tbl = {}
     path = os.path.join(DATA_ROOT, "manifold_area.csv")
     if not os.path.exists(path):
@@ -384,7 +383,7 @@ def load_area_table():
 
 
 def model_total_layers():
-    """从 Formant CSV 检测总层数；缺失回退 25。"""
+    """Detect total number of layers from Formant CSV; fallback to 25 if missing."""
     totals = {}
     for name, d in MODELS:
         path = os.path.join(DATA_ROOT, d, "formant_dim_analysis_cache",
@@ -407,7 +406,7 @@ def detect_dataset(n_langs):
 
 
 # ---------------------------------------------------------------------------
-# 轮次层索引
+# Round Layer Indexing
 # ---------------------------------------------------------------------------
 def round_layer(name, k, loops, totals):
     T = totals.get(name, 25)
@@ -416,11 +415,11 @@ def round_layer(name, k, loops, totals):
     return max(0, min(int(round(k / loops * (T - 1))), T - 1))
 
 
-FORCE_NONPARAM = False   # True 时对所有指标固定用非参数检验 (跨环境可复现)
+FORCE_NONPARAM = False   # When True, all metrics are fixed to use non-parametric tests (for reproducibility across environments)
 
 
 def effect_report(groups, label, indent="    "):
-    """对单指标做正态性 + 检验 + 效应量 + CI，返回一行摘要字符串。"""
+    """Perform normality test + hypothesis test + effect size + CI for a single metric, returning a summary string."""
     a, b = groups
     if len(a) == 0 or len(b) == 0:
         return f"{indent}{label:<14s} insufficient samples (n={len(a)}/{len(b)})"
@@ -449,7 +448,7 @@ def effect_report(groups, label, indent="    "):
 
 
 # ---------------------------------------------------------------------------
-# 单轮检验
+# Single Round Execution
 # ---------------------------------------------------------------------------
 def run_round(k, loops, totals, area_tbl, lang_floor, out):
     def p(s=""):
@@ -458,13 +457,13 @@ def run_round(k, loops, totals, area_tbl, lang_floor, out):
     layers = {n: round_layer(n, k, loops, totals) for n in NAMES}
 
     p("\n" + "=" * 78)
-    p(f" ROUND {k}/{loops} — 相对深度 {frac:.3f}")
-    p("  层索引: " + " / ".join(f"{n.split('-')[-1]}={layers[n]}" for n in NAMES))
+    p(f" ROUND {k}/{loops} — Relative Depth {frac:.3f}")
+    p("  Layer Index: " + " / ".join(f"{n.split('-')[-1]}={layers[n]}" for n in NAMES))
     p("=" * 78)
 
-    # ---------- 数据采集 ----------
-    pc = {}      # name -> (mc_signed, bl)  —— 凸包/面积必须用带符号值 (与 manifold_area.csv 同义)
-    mca = {}     # name -> |Max_Corr|        —— 仅用于 Max_Corr 的分布检验
+    # ---------- Data Collection ----------
+    pc = {}      # name -> (mc_signed, bl)  —— Convex hull/area must use signed values (same meaning as manifold_area.csv)
+    mca = {}     # name -> |Max_Corr|        —— Used only for Max_Corr distribution tests
     ids = {}     # name -> dict lang->ID
     areas = {}   # name -> (area, norm)
     for n in NAMES:
@@ -474,15 +473,15 @@ def run_round(k, loops, totals, area_tbl, lang_floor, out):
         ids[n] = load_id(n, layers[n])
         areas[n] = area_tbl.get((n, layers[n]), (None, None))
 
-    # ID 逐语言对齐（取四模型共有语言，保证可比）
+    # Align ID per language (take languages common to all four models to ensure comparability)
     common = set(lang_floor)
     for n in NAMES:
         common &= set(ids[n].keys())
     common = sorted(common)
     id_vec = {n: np.array([ids[n][l] for l in common]) for n in NAMES}
 
-    # ---------- 聚合指标（描述性） ----------
-    p("\n  聚合指标 (单值/模型层 — 描述性):")
+    # ---------- Aggregated Metrics (Descriptive) ----------
+    p("\n  Aggregated Metrics (Single Value/Model Layer — Descriptive):")
     hdr = (f"    {'Model':<12s}{'Layer':>6s}{'Params':>7s}{'Nodes':>7s}"
            f"{'ID(mean)':>10s}{'Area':>9s}{'NormArea':>10s}")
     p(hdr)
@@ -494,17 +493,17 @@ def run_round(k, loops, totals, area_tbl, lang_floor, out):
           f"{(f'{a:.4f}' if a is not None else 'n/a'):>9s}"
           f"{(f'{nm:.4f}' if nm is not None else 'n/a'):>10s}")
 
-    # ---------- 成对检验 ----------
-    for pair, kind in [(LANG_PAIR, "同参数/不同语言数 (非缩放)"),
-                       (SCALING_PAIR, "同语言数/不同参数 (真缩放)")]:
+    # ---------- Paired Tests ----------
+    for pair, kind in [(LANG_PAIR, "Same params / different language count (non-scaling)"),
+                       (SCALING_PAIR, "Same language count / different params (true scaling)")]:
         a, b = pair
-        p(f"\n  成对 {a} vs {b}  [{kind}]  (层 {layers[a]}/{layers[b]}):")
+        p(f"\n  Pairwise {a} vs {b} [{kind}] (Layer {layers[a]}/{layers[b]}):")
         p(effect_report((mca[a], mca[b]), "Max_Corr"))
         p(effect_report((pc[a][1], pc[b][1]), "Best_Lag_Sec"))
         p(effect_report((id_vec[a], id_vec[b]), "Intrinsic_Dim"))
 
-        # 面积: bootstrap 差值
-        # 凸包面积为带符号 (Max_Corr, Best_Lag) 的几何量, 与 manifold_area.csv 定义一致
+        # Area: bootstrap difference test
+        # Convex hull area is a geometric quantity of signed (Max_Corr, Best_Lag), consistent with manifold_area.csv definition
         pa_pts = np.column_stack([pc[a][0], pc[a][1]]) if len(pc[a][0]) else np.zeros((0, 2))
         pb_pts = np.column_stack([pc[b][0], pc[b][1]]) if len(pc[b][0]) else np.zeros((0, 2))
         d, lo, hi = bootstrap_area_diff(pa_pts, pb_pts, seed=k)
@@ -514,8 +513,8 @@ def run_round(k, loops, totals, area_tbl, lang_floor, out):
         else:
             p(f"    {'Area(diff)':<14s} insufficient samples")
 
-    # ---------- 综合四模型 ----------
-    p("\n  综合四模型 (omnibus):")
+    # ---------- Comprehensive Four-Model Test ----------
+    p("\n  Comprehensive Four-Model (Omnibus):")
     for label, getter in [("Max_Corr", lambda n: mca[n]),
                           ("Best_Lag_Sec", lambda n: pc[n][1]),
                           ("Intrinsic_Dim", lambda n: id_vec[n])]:
@@ -539,8 +538,8 @@ def run_round(k, loops, totals, area_tbl, lang_floor, out):
             else:
                 p(f"      Kruskal-Wallis H={H:.3f} p={fmt_p(pv)}")
 
-    # ---------- 缩放律（参数量 vs 聚合指标，n=4，精确 df=2） ----------
-    p("\n  缩放律 (Pearson, n=4, 精确 df=2; |r|>=0.95 才 p<0.05):")
+    # ---------- Scaling Law (Params vs Aggregated Metrics, n=4, exact df=2) ----------
+    p("\n  Scaling Law (Pearson, n=4, exact df=2; |r|>=0.95 required for p<0.05):")
     par = np.array([PARAMS_M[n] for n in NAMES], float)
     metrics = {
         "Nodes":    np.array([len(pc[n][0]) for n in NAMES], float),
@@ -564,7 +563,7 @@ def run_round(k, loops, totals, area_tbl, lang_floor, out):
 
 # ---------------------------------------------------------------------------
 class _Tee:
-    """同时写屏幕与日志文件。"""
+    """Writes simultaneously to screen and log file."""
     def __init__(self, path):
         self._terminal = sys.stdout
         self._log = open(path, 'w', encoding='utf-8', buffering=1)
@@ -603,14 +602,14 @@ def main():
             elif mode in ("auto", "default"):
                 FORCE_NONPARAM = False
             else:
-                print(f"[ERROR] --test 只接受 auto | nonparam", file=sys.stderr)
+                print(f"[ERROR] --test only accepts auto | nonparam", file=sys.stderr)
                 return 2
             i += 2
         elif args[i] == "--no-log":
             use_log = False; i += 1
         elif args[i] in ("--root",):
-            # 显式禁用: 本脚本只分析 FLEURS
-            print("[ERROR] 本脚本固定使用 FLEURS 目录 re-organized/, 不支持 --root。",
+            # Explicitly disabled: this script only analyzes FLEURS
+            print("[ERROR] This script is fixed to use the FLEURS directory re-organized/, --root is not supported.",
                   file=sys.stderr)
             return 2
         else:
@@ -628,22 +627,22 @@ def main():
         out.append(s)
 
     p("=" * 78)
-    p(" 循环深度统计检验 — FLEURS (24 languages) · 六类指标")
+    p(" Cyclic Depth Statistical Test — FLEURS (24 languages) · Six Metrics")
     p("   Max_Corr / Best_Lag_Sec / Intrinsic_Dim / Nodes / Area / NormArea")
-    p(f" 数据根目录: {DATA_ROOT}")
-    p(f" 轮次: {loops}   每轮相对深度 = k/{loops}")
+    p(f" Data Root Directory: {DATA_ROOT}")
+    p(f" Rounds: {loops}   Relative Depth per round = k/{loops}")
     p(f" scipy: {'available' if sp_stats is not None else 'MISSING'}"
-      f"   检验方法: {'forced nonparametric' if FORCE_NONPARAM else 'auto (Shapiro->Welch/MW)'}")
+      f"   Test Method: {'forced nonparametric' if FORCE_NONPARAM else 'auto (Shapiro->Welch/MW)'}")
     p("=" * 78)
     if sp_stats is None and not FORCE_NONPARAM:
-        p("\n[WARNING] 未安装 scipy: 正态性检验无法执行, 所有指标将强制使用非参数检验")
-        p("          (Mann-Whitney + Cliff's Δ)。装有 scipy 的机器在 auto 模式下会对正态指标")
-        p("          改用 Welch t + Cohen's d, 因此两边效应量不可直接比较。")
-        p("          需要跨环境可复现请加 --test nonparam (两边都强制非参数)。")
+        p("\n[WARNING] scipy not installed: normality tests cannot be performed, all metrics will default to non-parametric tests")
+        p("          (Mann-Whitney + Cliff's Δ). Machines with scipy in auto mode will switch to Welch t + Cohen's d for normally distributed metrics,")
+        p("          so effect sizes on both sides are not directly comparable.")
+        p("          Add --test nonparam if cross-environment reproducibility is needed (force non-parametric on both sides).")
 
     if not os.path.isdir(DATA_ROOT):
-        p(f"\n[ERROR] 未找到 FLEURS 数据目录: {DATA_ROOT}")
-        p(f"        请把 FLEURS 数据放在脚本同级的 {FLEURS_ROOT_NAME}/ 下, 结构为:")
+        p(f"\n[ERROR] FLEURS data directory not found: {DATA_ROOT}")
+        p(f"        Please place FLEURS data in {FLEURS_ROOT_NAME}/ at the same level as this script, with structure:")
         p(f"          {FLEURS_ROOT_NAME}/<model>/formant_dim_analysis_cache/"
           f"Formant_Lag_Analysis_Results_moreLayers.csv")
         p(f"          {FLEURS_ROOT_NAME}/<model>/ID_result/ID_Analysis_L<layer>_Fixed.csv")
@@ -653,8 +652,8 @@ def main():
     totals = model_total_layers()
     area_tbl = load_area_table()
 
-    # ---------- 启动诊断 ----------
-    p("\n[诊断] 数据完整性检查")
+    # ---------- Startup Diagnostics ----------
+    p("\n[Diagnostic] Data Integrity Check")
     missing = []
     for n, d in MODELS:
         pc_path = os.path.join(DATA_ROOT, d, "formant_dim_analysis_cache",
@@ -672,16 +671,16 @@ def main():
     no_pc = [m for m in missing if m.endswith(':Formant CSV')]
     no_id = [m for m in missing if m.endswith(':ID_result')]
     if no_pc:
-        p(f"\n[ERROR] 缺少 Formant CSV (该模型的所有指标将为空): {', '.join(x.split(':')[0] for x in no_pc)}")
+        p(f"\n[ERROR] Formant CSV missing (all metrics for these models will be empty): {', '.join(x.split(':')[0] for x in no_pc)}")
     if no_id:
-        p(f"\n[INFO] 以下模型尚无 ID_result, ID 检验将自动跳过: "
+        p(f"\n[INFO] The following models lack ID_result yet; ID tests will be automatically skipped: "
           f"{', '.join(x.split(':')[0] for x in no_id)}")
-        p("       若 ID 仍在计算中, 这是预期行为; 仅 Max_Corr / Best_Lag / Nodes / Area 参与统计。")
-        p(f"       待 ID 生成后放入 {DATA_ROOT}/<model>/ID_result/ID_Analysis_L<layer>_Fixed.csv 即可。")
+        p("       If ID is still being computed, this is expected behavior; only Max_Corr / Best_Lag / Nodes / Area participate in statistics.")
+        p(f"       Once generated, place it at {DATA_ROOT}/<model>/ID_result/ID_Analysis_L<layer>_Fixed.csv.")
     if not missing:
-        p("  -> 四个模型的 Formant CSV 与 ID_result 均已找到")
+        p("  -> Formant CSV and ID_result found for all four models")
 
-    # 数据集身份核验（语言数）
+    # Dataset identity verification (language count)
     probe = load_point_cloud(NAMES[0], 0)
     langs_pc = set()
     pc_path = os.path.join(DATA_ROOT, _model_dir(NAMES[0]), "formant_dim_analysis_cache",
@@ -690,31 +689,31 @@ def main():
         with open(pc_path, newline="", encoding="utf-8") as f:
             langs_pc = {str(r.get("Language", "")).strip() for r in csv.DictReader(f)}
     langs_pc.discard("")
-    p(f"\n[数据集] {detect_dataset(len(langs_pc))}  (distinct Language = {len(langs_pc)})")
+    p(f"\n[Dataset] {detect_dataset(len(langs_pc))}  (distinct Language = {len(langs_pc)})")
     if len(langs_pc) == 0:
-        p("  [WARNING] 读不到语言名, 请确认路径与文件格式")
+        p("  [WARNING] Could not read language names, please verify path and file format")
     elif len(langs_pc) < 20:
-        p(f"  [ERROR] 语言数 {len(langs_pc)} < 20, 这不是 FLEURS (24 语言) 数据。")
-        p("          本脚本仅用于 FLEURS; 请检查 re-organized/ 下是否为 FLEURS 结果。")
+        p(f"  [ERROR] Language count {len(langs_pc)} < 20, this is not FLEURS (24 languages) data.")
+        p("          This script is only for FLEURS; please check if re-organized/ contains FLEURS results.")
         _flush(out); return 3
 
     id_probe = load_id(NAMES[0], 0)
     lang_floor = sorted(id_probe.keys())
     if lang_floor:
-        p(f"[ID] 模型 {NAMES[0]} 第0层 *_fleurs 语言数 = {len(lang_floor)}")
+        p(f"[ID] Model {NAMES[0]} Layer 0 *_fleurs language count = {len(lang_floor)}")
     else:
-        p("[ID] 未检测到 ID 数据 -> Intrinsic_Dim 相关检验全部跳过 (其余指标正常)")
+        p("[ID] No ID data detected -> All Intrinsic_Dim related tests skipped (other metrics normal)")
 
-    # ---------- 逐轮 ----------
+    # ---------- Per Round Execution ----------
     summary = []
     for k in range(1, loops + 1):
         summary.append(run_round(k, loops, totals, area_tbl, lang_floor, out))
         p("")
         _flush(out)
 
-    # ---------- 跨轮汇总 ----------
+    # ---------- Cross-Round Summary ----------
     p("\n" + "=" * 78)
-    p(" 跨轮汇总 — 聚合指标随相对深度的变化")
+    p(" Cross-Round Summary — Changes in Aggregated Metrics with Relative Depth")
     p("-" * 78)
     p(f"{'R':<3}{'layers(53/300M/1B/2B)':<22}{'Nodes':<20}{'ID mean':<24}{'Area(1B/2B)':<18}")
     for s in summary:
@@ -726,27 +725,27 @@ def main():
         p(f"{s['k']:<3}{lay:<22}{nod:<20}{idm:<24}{ar:<18}")
 
     p("\n" + "=" * 78)
-    p(" 说明")
+    p(" Notes")
     p("-" * 78)
-    p(" * Max_Corr / Best_Lag: 逐节点 (|Max_Corr|>0.1) 检验, 可做显著性推断")
-    p(" * Intrinsic_Dim: 逐语言 (四模型共有的 *_fleurs 语言) 检验, 可做显著性推断")
-    p(" * Nodes: 每层显著维度数, 单值 -> 仅描述性")
-    p(" * Area / NormArea: 每层凸包面积, 单值 -> bootstrap CI + 差值 bootstrap 检验")
-    p(" * 缩放律: 参数量 vs 聚合指标, Pearson 精确 t (n=4 -> df=2, 临界|r|=0.95)")
-    p(" * 真缩放对比 = XLS-R-1B vs XLS-R-2B (同128语言/不同参数);")
-    p("   XLSR-53 vs XLS-R-300M (同300M/不同语言数53vs128) 属数据规模效应, 非缩放。")
+    p(" * Max_Corr / Best_Lag: Per-node (|Max_Corr|>0.1) tests, significance inference possible")
+    p(" * Intrinsic_Dim: Per-language (languages common to all four models ending in *_fleurs) tests, significance inference possible")
+    p(" * Nodes: Number of significant dimensions per layer, single value -> descriptive only")
+    p(" * Area / NormArea: Convex hull area per layer, single value -> bootstrap CI + difference bootstrap test")
+    p(" * Scaling Law: Parameters vs Aggregated Metrics, Pearson exact t (n=4 -> df=2, critical |r|=0.95)")
+    p(" * True scaling comparison = XLS-R-1B vs XLS-R-2B (same 128 languages / different parameters);")
+    p("   XLSR-53 vs XLS-R-300M (same ~300M params / different language counts 53vs128) is a data scale effect, not scaling.")
     p("=" * 78)
 
     _flush(out)
 
     if use_log and isinstance(sys.stdout, _Tee):
-        print(f"\n[日志] 已保存: {log_path}", file=sys.__stdout__)
+        print(f"\n[Log] Saved: {log_path}", file=sys.__stdout__)
         sys.stdout.close()
     return 0
 
 
 def _flush(out):
-    """把累积的行一次性写出（便于 tee 到文件）。"""
+    """Write accumulated lines at once (facilitates tee to file)."""
     if not out:
         return
     sys.stdout.write("\n".join(out) + "\n")

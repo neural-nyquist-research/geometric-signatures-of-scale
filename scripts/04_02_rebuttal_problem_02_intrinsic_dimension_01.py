@@ -164,8 +164,6 @@ for config in configs:
         os.makedirs(id_path)
 
     for target_layer in config["LAYERS"]:
-        if target_layer <= 46 and config["MODEL"] == "MMS-1B": continue
-
         root_path = os.path.join(config["BASE_DIR"], f"./hidden_states_{target_layer:02d}")
         results = [] # <--- Added initialization
 
