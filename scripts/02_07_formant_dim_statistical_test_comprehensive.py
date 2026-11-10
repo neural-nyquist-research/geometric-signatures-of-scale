@@ -73,14 +73,21 @@ LANG_PAIR = ("XLSR-53", "XLS-R-300M")
 # It does not read or fallback to the MLS directory (re-organized_mls/).
 FLEURS_ROOT_NAME = "re-organized"
 _ROOT_CANDIDATES = [FLEURS_ROOT_NAME]
-DATA_ROOT = os.path.join(HERE, FLEURS_ROOT_NAME)
+DATA_ROOT = HERE  # replaced by pick_root() in main()
 
 
 def pick_root():
-    """Returns the FLEURS data root directory <script_dir>/re-organized/.
+    """Returns the FLEURS data root directory, in either supported layout.
 
-    Does not perform any MLS fallback: if this directory is missing, it is treated as a configuration error, and the caller should exit with an error.
+    The data folder sits beside the script in the flat (unzipped) layout and one level above it in the
+    repository layout, so the search order is: current directory, the script's directory, its parent.
+    Does not perform any MLS fallback: if this directory is missing, it is treated as a configuration
+    error and the caller exits with an error.
     """
+    for base in (os.getcwd(), HERE, os.path.dirname(HERE)):
+        candidate = os.path.join(base, FLEURS_ROOT_NAME)
+        if os.path.isdir(candidate):
+            return candidate
     return os.path.join(HERE, FLEURS_ROOT_NAME)
 
 
