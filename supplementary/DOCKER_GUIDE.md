@@ -24,11 +24,14 @@ container will write them as root and you will fight permissions later.
 ```bash
 export BASE_PATH="/mnt/bigdrive/geometry_project"
 mkdir -p $BASE_PATH/{audios,huggingface,models,inferred,re-organized,re-organized_mls,downstream,results}
+cp scripts/hn_rucheng_1_hours_merged.wav "$BASE_PATH"
 ```
 
-Nothing has to be copied into `$BASE_PATH`. The mount hides whatever the image put at that path, so the
-container restores the scripts and the shipped caches itself on start-up (§4); the first run copies about
-12 MB into the folder, once.
+The scripts and the shipped caches need no copying: the mount hides whatever the image put at that path, so
+the container restores them itself on start-up (§4), about 12 MB once. The one file that has to come from
+outside is the Rucheng recording — it is 108 MB and travels with the repository through Git LFS rather than
+inside `scripts.zip`, so `00_02` (which copies it to `audios/_hn_rucheng/`) needs it in the mount. Without it
+everything except the case study still runs.
 
 ## 3. Run
 
