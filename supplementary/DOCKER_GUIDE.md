@@ -11,10 +11,10 @@ cd /path/to/geometric-signatures-of-scale
 docker build -f supplementary/Dockerfile -t geometry-analysis:latest .
 ```
 
-The image installs `requirements.txt` into a virtual environment at
-`/home/geometry_user/geometry/geometry_env` and unpacks the script archive into `/home/geometry_user/geometry`
-itself, without a `scripts/` folder in between: inside the container the scripts sit next to `re-organized/`
-and the other data folders, and every command runs from the working directory.
+The image installs the pinned environment into a virtualenv at **`/opt/geometry-env`**, which is on `PATH`,
+so `python` is 3.12.9 with the pins in every shell and nothing has to be activated. The script archive is
+unpacked into `/home/geometry_user/geometry` itself, without a `scripts/` folder in between: the scripts sit
+next to `re-organized/` and the other data folders, and every command runs from the working directory.
 
 ## 2. Prepare host storage
 
@@ -26,8 +26,9 @@ export BASE_PATH="/mnt/bigdrive/geometry_project"
 mkdir -p $BASE_PATH/{audios,huggingface,models,inferred,re-organized,re-organized_mls,downstream,results}
 ```
 
-Nothing has to be copied into `$BASE_PATH`: the container puts the scripts there itself, because the mount
-hides the ones unpacked at build time (§4).
+Nothing has to be copied into `$BASE_PATH`. The mount hides whatever the image put at that path, so the
+container restores the scripts and the shipped caches itself on start-up (§4); the first run copies about
+12 MB into the folder, once.
 
 ## 3. Run
 
@@ -46,23 +47,33 @@ defaults assume 128 GB.
 ## 4. Inside the container
 
 ```bash
-source geometry_env/bin/activate
+python -V                                                                # 3.12.9, already the pinned env
 python 43_05_table_mantel_checkpoints_tab-mantel-checkpoints.py --check   # analysis, minutes
 ./00_15-18_infer.sh natural                                              # extraction, hours
 ```
 
+There is no `source geometry_env/bin/activate` step: the environment is at `/opt/geometry-env` and already
+first on `PATH`. `source /opt/geometry-env/bin/activate` works if you want the prompt changed, and
+`pip install` inside it is writable by `geometry_user`.
+
 No `scripts/` prefix: the archive is flat, and the scripts are addressed from the working directory. The
 same holds for the batch runners `00_15-18_infer.sh` and `00_15-18_infer.bat`.
 
-### Why the scripts are there at all
+### Why the scripts, caches and environment are still there
 
 The working directory doubles as the mount point, and a bind mount **replaces** the directory instead of
-merging with it: everything the image unpacked at `/home/geometry_user/geometry` disappears behind
-`$BASE_PATH`. That is why the Dockerfile also keeps a pristine copy at `/opt/geometry-scripts`, and why the
-container carries an entry point (`supplementary/docker-entrypoint.sh`) that copies it back when the mounted
-folder holds no `MANIFEST.txt`. A folder that already has the scripts is left alone, so a host copy of the
-archive still wins; you only need to unzip into `$BASE_PATH` yourself if you want the scripts to live on the
-host between runs.
+merging with it: everything the image put at `/home/geometry_user/geometry` disappears behind `$BASE_PATH`.
+That is why nothing the container needs lives there alone:
+
+| what | where it really lives | how it reaches the working directory |
+|---|---|---|
+| Python environment | `/opt/geometry-env` | on `PATH`; never hidden, nothing to activate |
+| scripts | `/opt/geometry-scripts` | entry point copies them in when the folder has no `MANIFEST.txt` |
+| `figures/`, `data/`, `logs/`, `downstream/`, `cldf-datasets_wals/`, `re-organized/`, `re-organized_mls/` | `/opt/geometry-data` | entry point copies each missing folder in, once (~12 MB) |
+
+Files the host already has are left untouched, so your own copy of a cache or a script wins; run the
+container on a read-only mount and the entry point warns instead of failing. If you would rather keep the
+scripts on the host between runs, unzip `supplementary/scripts.zip` into `$BASE_PATH` yourself.
 
 ## 5. Notes
 

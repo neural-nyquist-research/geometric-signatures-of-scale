@@ -8,14 +8,19 @@
 # The image carries code and the Python environment only. Audio, checkpoints and
 # activations arrive through a bind mount at /home/geometry_user/geometry; see
 # DOCKER_GUIDE.md. The archive is unpacked into the working directory, so the
-# scripts sit beside re-organized/ rather than in a scripts/ folder, and are restored at
-# start-up if a bind mount over the working directory hides them.
+# scripts sit beside re-organized/ rather than in a scripts/ folder.
+#
+# That directory is also the mount point, and a bind mount replaces it rather than merging
+# with it. Everything baked there - scripts, shipped caches, figures, the Python environment -
+# is therefore invisible once the mount is in place, so the Python environment lives at
+# /opt/geometry-env (on PATH) and the rest is stashed under /opt and restored at start-up.
 
 FROM python:3.12.9-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    MPLBACKEND=Agg
+    MPLBACKEND=Agg \
+    PATH="/opt/geometry-env/bin:${PATH}"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
@@ -37,10 +42,14 @@ WORKDIR /home/geometry_user/geometry
 COPY --chown=geometry_user:geometry_user requirements.txt ./
 COPY --chown=geometry_user:geometry_user supplementary/environment_geometry_winpython3.12.9.0.txt ./
 
-RUN python -m venv geometry_env \
-    && ./geometry_env/bin/pip install --upgrade pip \
-    && ./geometry_env/bin/pip install --no-cache-dir \
-         -r environment_geometry_winpython3.12.9.0.txt
+# The environment lives outside the working directory on purpose: a data mount over that
+# directory would hide it, and `source geometry_env/bin/activate` would fail. It is on PATH
+# instead, so `python` is the pinned interpreter in every shell.
+RUN python -m venv /opt/geometry-env \
+    && /opt/geometry-env/bin/pip install --upgrade pip \
+    && /opt/geometry-env/bin/pip install --no-cache-dir \
+         -r environment_geometry_winpython3.12.9.0.txt \
+    && chown -R geometry_user:geometry_user /opt/geometry-env
 
 # Copy the scripts and requirements
 COPY --chown=geometry_user:geometry_user supplementary/scripts.zip ./
@@ -65,6 +74,12 @@ COPY --chown=geometry_user:geometry_user README.md LICENSE ./
 # mounted volume at run time.
 COPY --chown=geometry_user:geometry_user re-organized ./re-organized
 COPY --chown=geometry_user:geometry_user re-organized_mls ./re-organized_mls
+
+# Same reason as the scripts: the mount hides everything under the working directory, so the
+# shipped figures, caches and tables are kept at /opt/geometry-data and restored on start-up.
+RUN mkdir -p /opt/geometry-data \
+    && cp -a figures data downstream logs cldf-datasets_wals re-organized re-organized_mls /opt/geometry-data/ \
+    && chmod -R a+rX /opt/geometry-data
 
 RUN mkdir -p audios huggingface models inferred results docs \
     && chown -R geometry_user:geometry_user /home/geometry_user/geometry
