@@ -2,7 +2,7 @@
 
 The container pins Python 3.12.9, FFmpeg and the scientific stack, so the pipeline behaves the same on
 any host. Build from the **repository root** — the Dockerfile lives in `supplementary/`, but its build
-context is the root, because it copies `scripts/` and `requirements.txt`.
+context is the root, because it copies `requirements.txt` and `supplementary/scripts.zip`.
 
 ## 1. Build
 
@@ -12,7 +12,9 @@ docker build -f supplementary/Dockerfile -t geometry-analysis:latest .
 ```
 
 The image installs `requirements.txt` into a virtual environment at
-`/home/geometry_user/geometry/geometry_env` and copies the pipeline to `/home/geometry_user/geometry/scripts`.
+`/home/geometry_user/geometry/geometry_env` and unpacks the script archive into `/home/geometry_user/geometry`
+itself, without a `scripts/` folder in between: inside the container the scripts sit next to `re-organized/`
+and the other data folders, and every command runs from the working directory.
 
 ## 2. Prepare host storage
 
@@ -22,6 +24,7 @@ container will write them as root and you will fight permissions later.
 ```bash
 export BASE_PATH="/mnt/bigdrive/geometry_project"
 mkdir -p $BASE_PATH/{audios,huggingface,models,inferred,re-organized,re-organized_mls,downstream,results}
+unzip -o supplementary/scripts.zip -d "$BASE_PATH"    # the mount hides the copy baked into the image
 ```
 
 ## 3. Run
@@ -30,7 +33,6 @@ mkdir -p $BASE_PATH/{audios,huggingface,models,inferred,re-organized,re-organize
 docker run --rm -it \
   --memory=64g --shm-size=8g \
   -v "$BASE_PATH":/home/geometry_user/geometry \
-  -v /path/to/geometric-signatures-of-scale/scripts:/home/geometry_user/geometry/scripts:ro \
   geometry-analysis:latest
 ```
 
@@ -43,12 +45,12 @@ defaults assume 128 GB.
 
 ```bash
 source geometry_env/bin/activate
-python scripts/43_05_table_mantel_checkpoints_tab-mantel-checkpoints.py --check   # analysis, minutes
-./00_15-18_infer.sh natural                                                     # extraction, hours
+python 43_05_table_mantel_checkpoints_tab-mantel-checkpoints.py --check   # analysis, minutes
+./00_15-18_infer.sh natural                                              # extraction, hours
 ```
 
-The batch runners assume the flat layout; if you prefer them, unzip `supplementary/scripts.zip` into the
-working directory and run from there.
+No `scripts/` prefix: the archive is flat, and the scripts are addressed from the working directory. The
+same holds for the batch runners `00_15-18_infer.sh` and `00_15-18_infer.bat`.
 
 ## 5. Notes
 

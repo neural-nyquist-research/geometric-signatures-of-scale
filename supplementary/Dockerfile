@@ -1,13 +1,14 @@
 # Container recipe for the geometric-signatures pipeline.
 #
-# Build from the REPOSITORY ROOT, because both the requirements file and the
-# scripts are taken from there:
+# Build from the REPOSITORY ROOT, because `requirements.txt` and the script
+# archive `supplementary/scripts.zip` are taken from there:
 #
 #     docker build -f supplementary/Dockerfile -t geometry-analysis:latest .
 #
 # The image carries code and the Python environment only. Audio, checkpoints and
 # activations arrive through a bind mount at /home/geometry_user/geometry; see
-# DOCKER_GUIDE.md.
+# DOCKER_GUIDE.md. The archive is unpacked into the working directory, so the
+# scripts sit beside re-organized/ rather than in a scripts/ folder.
 
 FROM python:3.12.9-slim
 
@@ -40,7 +41,11 @@ RUN python -m venv geometry_env \
     && ./geometry_env/bin/pip install --no-cache-dir \
          -r environment_geometry_winpython3.12.9.0.txt
 
-COPY --chown=geometry_user:geometry_user scripts ./scripts
+# Copy the scripts and requirements
+COPY --chown=geometry_user:geometry_user supplementary/scripts.zip ./
+
+# Unzip scripts and cleanup
+RUN unzip -o scripts.zip && rm scripts.zip
 COPY --chown=geometry_user:geometry_user figures ./figures
 COPY --chown=geometry_user:geometry_user data ./data
 COPY --chown=geometry_user:geometry_user downstream ./downstream
@@ -59,4 +64,5 @@ RUN mkdir -p audios huggingface models inferred results docs \
 
 USER geometry_user
 
+# Entry point
 CMD ["/bin/bash"]

@@ -37,3 +37,10 @@ venv/
 
 # Praat binaries; the runbook in praat_PitchTier/ works with any Praat 6.4.x
 *.exe
+
+# Case-study inputs: the two small arrays ship with the repository; the 108 MB recording
+# is stored with Git LFS in the deployment repository only, so it stays out of this one.
+!scripts/_hn_rucheng_dim1815_frames1000_2000.npy
+!scripts/praat_f0_aligned_20s_40s.npy
+# The Rucheng recording ships here through Git LFS
+!scripts/hn_rucheng_1_hours_merged.wav

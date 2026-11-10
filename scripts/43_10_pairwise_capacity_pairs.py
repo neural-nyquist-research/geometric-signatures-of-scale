@@ -142,7 +142,7 @@ def summarise(res, loops, n_tests):
 def main():
     ap = argparse.ArgumentParser(description=(__doc__ or "").split("\n")[0])
     ap.add_argument("--loops", type=int, default=12)
-    ap.add_argument("--out", default=os.path.join(os.path.dirname(HERE), "results",
+    ap.add_argument("--out", default=os.path.join(_project_root(), "results",
                                                 "pair_summary.csv"))
     a = ap.parse_args()
 
@@ -159,6 +159,7 @@ def main():
                      r["sign"], "%.3f" % r["median_eff"],
                      "YES" if r["all_same_sign"] else "no"))
 
+    os.makedirs(os.path.dirname(os.path.abspath(a.out)), exist_ok=True)
     with open(a.out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=list(rows[0].keys()))
         w.writeheader()
