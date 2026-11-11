@@ -1,0 +1,7 @@
+# Keep the build context small; the image needs the code, the caches and the recording only.
+# logs/ is deliberately not excluded: 43_09 pins the Section IV-G p-values to those three files.
+.git
+results/
+*.exe
+**/__pycache__
+paper_revise/

@@ -1,26 +1,25 @@
 # Container recipe for the geometric-signatures pipeline.
 #
-# Build from the REPOSITORY ROOT, because `requirements.txt` and the script
-# archive `supplementary/scripts.zip` are taken from there:
+# Build from the REPOSITORY ROOT, because `requirements.txt`, the environment file and the
+# script archive are taken from there:
 #
 #     docker build -f supplementary/Dockerfile -t geometry-analysis:latest .
 #
-# The image carries code and the Python environment only. Audio, checkpoints and
-# activations arrive through a bind mount at /home/geometry_user/geometry; see
-# DOCKER_GUIDE.md. The archive is unpacked into the working directory, so the
-# scripts sit beside re-organized/ rather than in a scripts/ folder.
+# The image carries the code, the pinned environment and the shipped measurement caches. Audio,
+# checkpoints and activations arrive through bind mounts, one mount per data folder - never a
+# mount over the working directory itself, because that would hide everything the image put
+# there. See DOCKER_GUIDE.md.
 #
-# That directory is also the mount point, and a bind mount replaces it rather than merging
-# with it. Everything baked there - scripts, shipped caches, figures, the Python environment -
-# is therefore invisible once the mount is in place, so the Python environment lives at
-# /opt/geometry-env (on PATH) and the rest is stashed under /opt and restored at start-up.
+#   mounted at run time : audios/, huggingface/, models/, inferred/, results/
+#   from the image      : the scripts, geometry_env/, figures/, data/, downstream/, logs/,
+#                         cldf-datasets_wals/, re-organized/, re-organized_mls/ and
+#                         hn_rucheng_1_hours_merged.wav
 
 FROM python:3.12.9-slim
 
 ENV DEBIAN_FRONTEND=noninteractive \
     PYTHONUNBUFFERED=1 \
-    MPLBACKEND=Agg \
-    PATH="/opt/geometry-env/bin:${PATH}"
+    MPLBACKEND=Agg
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ffmpeg \
@@ -33,35 +32,33 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Create the user and the working directory, and hand both to it, before anything is copied in.
 RUN useradd -m -s /bin/bash geometry_user \
     && mkdir -p /home/geometry_user/geometry \
     && chown -R geometry_user:geometry_user /home/geometry_user/geometry
 
 WORKDIR /home/geometry_user/geometry
 
+USER geometry_user
+
 COPY --chown=geometry_user:geometry_user requirements.txt ./
 COPY --chown=geometry_user:geometry_user supplementary/environment_geometry_winpython3.12.9.0.txt ./
 
-# The environment lives outside the working directory on purpose: a data mount over that
-# directory would hide it, and `source geometry_env/bin/activate` would fail. It is on PATH
-# instead, so `python` is the pinned interpreter in every shell.
-RUN python -m venv /opt/geometry-env \
-    && /opt/geometry-env/bin/pip install --upgrade pip \
-    && /opt/geometry-env/bin/pip install --no-cache-dir \
-         -r environment_geometry_winpython3.12.9.0.txt \
-    && chown -R geometry_user:geometry_user /opt/geometry-env
+# The environment lives in the working directory and is entered the usual way:
+#     source geometry_env/bin/activate
+# Mounting the data folders one by one keeps it visible; mounting the whole working directory
+# would not.
+RUN python -m venv geometry_env \
+    && ./geometry_env/bin/pip install --upgrade pip \
+    && ./geometry_env/bin/pip install --no-cache-dir \
+         -r environment_geometry_winpython3.12.9.0.txt
 
 # Copy the scripts and requirements
 COPY --chown=geometry_user:geometry_user supplementary/scripts.zip ./
 
-# Unzip scripts and cleanup. A pristine copy is kept at /opt/geometry-scripts: the data mount
-# replaces the working directory at run time, so the unpacked copies here are not always visible.
-RUN mkdir -p /opt/geometry-scripts \
-    && unzip -o -q scripts.zip -d /opt/geometry-scripts \
-    && unzip -o scripts.zip \
-    && rm scripts.zip \
-    && chown -R root:root /opt/geometry-scripts \
-    && chmod -R a+rX /opt/geometry-scripts
+# Unzip scripts and cleanup
+RUN unzip -o scripts.zip && rm scripts.zip
+
 COPY --chown=geometry_user:geometry_user figures ./figures
 COPY --chown=geometry_user:geometry_user data ./data
 COPY --chown=geometry_user:geometry_user downstream ./downstream
@@ -69,27 +66,22 @@ COPY --chown=geometry_user:geometry_user logs ./logs
 COPY --chown=geometry_user:geometry_user cldf-datasets_wals ./cldf-datasets_wals
 COPY --chown=geometry_user:geometry_user README.md LICENSE ./
 
-# Measurement caches are ~5.6 MB and are copied in, so the container can
-# reproduce every table without a host mount. Extraction outputs go to the
-# mounted volume at run time.
+# Measurement caches are ~7.5 MB and are copied in, so the container can reproduce every table
+# without a host mount. Extraction outputs go to the mounted folders at run time.
 COPY --chown=geometry_user:geometry_user re-organized ./re-organized
 COPY --chown=geometry_user:geometry_user re-organized_mls ./re-organized_mls
 
-# Same reason as the scripts: the mount hides everything under the working directory, so the
-# shipped figures, caches and tables are kept at /opt/geometry-data and restored on start-up.
-RUN mkdir -p /opt/geometry-data \
-    && cp -a figures data downstream logs cldf-datasets_wals re-organized re-organized_mls /opt/geometry-data/ \
-    && chmod -R a+rX /opt/geometry-data
+# The Rucheng recording is 108 MB, so it is not inside scripts.zip; 00_02 copies it from the
+# working directory into audios/_hn_rucheng/. The repository tracks it through Git LFS, so an
+# unpulled checkout would bake in a 130-byte pointer - the check below says so.
+COPY --chown=geometry_user:geometry_user scripts/hn_rucheng_1_hours_merged.wav ./
+RUN size=$(stat -c%s hn_rucheng_1_hours_merged.wav) && \
+    if [ "$size" -lt 1000000 ]; then \
+        echo "WARNING: hn_rucheng_1_hours_merged.wav is $size bytes, which is a Git LFS pointer." && \
+        echo "         Run 'git lfs pull' in the repository and build again." ; \
+    fi
 
-RUN mkdir -p audios huggingface models inferred results docs \
-    && chown -R geometry_user:geometry_user /home/geometry_user/geometry
-
-# Restores the scripts into the working directory when a data mount has hidden them.
-COPY --chown=root:root supplementary/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod 755 /usr/local/bin/docker-entrypoint.sh
-
-USER geometry_user
+RUN mkdir -p audios huggingface models inferred results docs
 
 # Entry point
-ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["/bin/bash"]

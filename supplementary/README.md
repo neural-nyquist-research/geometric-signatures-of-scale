@@ -7,8 +7,8 @@ Everything needed to install and run the pipeline on a machine other than the au
 | `environment_geometry_winpython3.12.9.0.txt` | the **full** pinned environment, torch included, used for extraction and analysis |
 | `Dockerfile` | container recipe; builds from the **repository root**, not from this folder |
 | `DOCKER_GUIDE.md` | build and run instructions, with the host-mount layout the pipeline expects |
-| `docker-entrypoint.sh` | container entry point: restores the scripts into the working directory when the data mount has hidden them |
 | `scripts.zip` | the contents of the repository's `scripts/` folder — 93 files, flat, 274 KB — for a machine where the scripts sit beside the data folders |
+| `.dockerignore` | keeps the build context at ~120 MB: no git history, no `results/`, no Windows Praat binaries |
 
 ## What is in `scripts.zip`
 
